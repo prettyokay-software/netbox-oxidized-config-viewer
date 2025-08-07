@@ -2,14 +2,36 @@
 
 View configurations backed up in Oxidized in Netbox
 
+This project was created using human directed AI coding, primarily Devstral and Google Gemini. 
+
+
+## To install in its current form
+
+* Download repo and transfer to somewhere close to your Netbox install
+* Activate Netbox venv
+* `pip install -e path/to/netbox-oxidized-config-viewer`
+* Add to Netbox configuration.yml
+    * `PLUGINS = [ "netbox_oxidized_config_viewer"]`
+    * `PLUGINS_CONFIG = {
+    'netbox_oxidized_config_viewer': {
+      'oxidized_api_url': 'http://localhost:8888/'
+   },`
+
 
 * Free software: GPL v3
 * Documentation: https://.github.io/netbox-oxidized-config-viewer/
 
 
 ## Features
+Allows viewing of config from device tab
 
-The features the plugin provides should be listed here.
+Download previous config versions
+
+Display diff of config versions (alpha version feature)
+
+Lists all devices with config backups as well as their versions
+
+Allows triggering a new backup from Netbox UI
 
 ## Compatibility
 
@@ -55,3 +77,4 @@ Based on the NetBox plugin tutorial:
 - [tutorial](https://github.com/netbox-community/netbox-plugin-tutorial)
 
 This package was created with [Cookiecutter](https://github.com/audreyr/cookiecutter) and the [`netbox-community/cookiecutter-netbox-plugin`](https://github.com/netbox-community/cookiecutter-netbox-plugin) project template.
+
