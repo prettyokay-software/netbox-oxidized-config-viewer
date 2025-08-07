@@ -51,13 +51,13 @@ For adding to a NetBox Docker setup see
 While this is still in development and not yet on pypi you can install with pip:
 
 ```bash
-pip install git+https://github.com//netbox-oxidized-config-viewer
+pip install git+https://github.com/prettyokay-software/netbox-oxidized-config-viewer
 ```
 
 or by adding to your `local_requirements.txt` or `plugin_requirements.txt` (netbox-docker):
 
 ```bash
-git+https://github.com//netbox-oxidized-config-viewer
+git+https://github.com/prettyokay-software/netbox-oxidized-config-viewer
 ```
 
 Enable the plugin in `/opt/netbox/netbox/netbox/configuration.py`,
@@ -69,7 +69,7 @@ PLUGINS = [
 ]
 
 PLUGINS_CONFIG = {
-    "netbox-oxidized-config-viewer": {},
+    "netbox-oxidized-config-viewer": {'oxidized_api_url': 'http://localhost:8888/'},
 }
 ```
 
@@ -81,5 +81,6 @@ Based on the NetBox plugin tutorial:
 - [tutorial](https://github.com/netbox-community/netbox-plugin-tutorial)
 
 This package was created with [Cookiecutter](https://github.com/audreyr/cookiecutter) and the [`netbox-community/cookiecutter-netbox-plugin`](https://github.com/netbox-community/cookiecutter-netbox-plugin) project template.
+
 
 
