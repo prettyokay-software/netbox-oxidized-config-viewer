@@ -1,0 +1,246 @@
+{% extends 'dcim/device.html' %}
+{% load helpers %}
+{% load i18n %}
+
+{% block title %}{{ object }} - {% trans "Configuration Backup" %}{% endblock %}
+
+{% block head %}
+{{ block.super }}
+<style>
+  #diffForm {
+    display: flex;
+    gap: .5rem;
+    align-items: center;
+  }
+  #configForm select.form-select,
+  #diffForm select.form-select {
+    width: 250px;
+  }
+  
+  /* CSS for skeleton loader */
+  .skeleton {
+    animation: skeleton-loading 1s linear infinite alternate;
+  }
+
+  @keyframes skeleton-loading {
+    0% {
+      background-color: hsl(200, 20%, 80%);
+    }
+    100% {
+      background-color: hsl(200, 20%, 95%);
+    }
+  }
+
+  .skeleton-diff .skeleton-line {
+    height: 20px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+  }
+  
+  .skeleton-diff .skeleton-line.short {
+    width: 60%;
+  }
+  
+  .skeleton-diff .skeleton-line.medium {
+    width: 80%;
+  }
+  
+  .skeleton-diff .skeleton-line.long {
+    width: 100%;
+  }
+  
+  .skeleton-diff .skeleton-header {
+    height: 30px;
+    margin-bottom: 15px;
+    border-radius: 4px;
+  }
+</style>
+{% endblock %}
+{% block content %}
+  <div class="card">
+    <h2 class="card-header d-flex justify-content-between align-items-center">
+      <div>
+        {% trans "Configuration Backup" %}
+        {% if selected_backup_date %}
+            <small class="text-muted">({{ selected_backup_date }})</small>
+        {% endif %}
+      </div>
+      <div class="d-flex align-items-center gap-2">
+          {% if backups %}
+          <a href="?export=True{% if selected_backup_id %}&backup={{ selected_backup_id }}{% endif %}" class="btn btn-primary lh-1" role="button" id="downloadButton">
+            <i class="mdi mdi-download"></i> {% trans "Download" %}
+          </a>
+        {% copy_content "config" %}{% comment %} We'll hide this in diff mode via JavaScript {% endcomment %}
+      <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" id="diffToggle">
+        <label class="form-check-label" for="diffToggle">Diff</label>
+      </div>
+          <form method="get" class="form-inline" id="configForm">
+              <select name="backup" class="form-select" onchange="this.form.submit()">
+                  {% for backup in backups %}
+                      <option value="{{ backup.id }}" {% if backup.id == selected_backup_id %}selected{% endif %}>
+                          {{ backup.date }}
+                      </option>
+                  {% endfor %}
+              </select>
+          </form>
+          <form method="get" class="d-none" id="diffForm">
+              <select name="backup_a" class="form-select">
+                  {% for backup in backups %}
+                      <option value="{{ backup.id }}" {% if backup.id == backup_a_id %}selected{% endif %}>{{ backup.date }}</option>
+                  {% endfor %}
+              </select>
+              <select name="backup_b" class="form-select">
+                  {% for backup in backups %}
+                      <option value="{{ backup.id }}" {% if backup.id == backup_b_id %}selected{% endif %}>{{ backup.date }}</option>
+                  {% endfor %}
+              </select>
+              <button type="submit" class="btn btn-primary">Compare</button>
+          </form>
+          {% endif %}
+        </div>
+      </h2>
+      <div id="diff-container" class="card-body d-none"></div>
+      <pre class="card-body" id="config" style="{% if is_diff_mode %}display:none;{% endif %}">{{ config }}</pre>
+    </div>
+
+    <!-- Include diff2html CSS and JS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/diff2html/bundles/css/diff2html.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/styles/github.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/diff2html/bundles/js/diff2html-ui-slim.min.js"></script>
+    <!-- We'll use server-processed diffs instead of client-side processing -->
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const diffToggle = document.getElementById('diffToggle');
+        const fullConfigToggle = document.getElementById('fullConfigToggle');
+        const configForm = document.getElementById('configForm');
+        const diffForm = document.getElementById('diffForm');
+        const configPane = document.getElementById('config');
+        const diffContainer = document.getElementById('diff-container');
+        const cardHeader = document.querySelector('.card-header');
+
+        // Initialize state based on URL parameters if diff mode is active
+        const urlParams = new URLSearchParams(window.location.search);
+        let showFullConfig = false;
+
+        // Check if full config mode is enabled via URL parameter
+        if (urlParams.has('full_config')) {
+          showFullConfig = urlParams.get('full_config') === 'true';
+          fullConfigToggle.checked = showFullConfig;
+        }
+
+        const isDiffMode = urlParams.has('backup_a') && urlParams.has('backup_b');
+        if (isDiffMode) {
+          diffToggle.checked = true;
+          configForm.classList.add('d-none');
+          diffForm.classList.remove('d-none');
+          configPane.style.display = 'none';
+          diffContainer.classList.remove('d-none');
+        }
+
+        diffToggle.addEventListener('change', function() {
+          if (this.checked) {
+            configForm.classList.add('d-none');
+            diffForm.classList.remove('d-none');
+            configPane.style.display = 'none';
+            diffContainer.classList.remove('d-none');
+          } else {
+            configForm.classList.remove('d-none');
+            diffForm.classList.add('d-none');
+            diffContainer.classList.add('d-none');
+            configPane.style.display = '';
+          }
+        });
+
+        // Handle diff form submission
+        diffForm.addEventListener('submit', function(event) {
+          event.preventDefault();
+          const backupAId = this.elements['backup_a'].value;
+          const backupBId = this.elements['backup_b'].value;
+          fetchAndDisplayDiffs(backupAId, backupBId);
+        });
+
+        // Function to fetch and display diffs
+        function fetchAndDisplayDiffs(backupAId, backupBId) {
+          // Show skeleton loader while fetching diffs
+          showSkeletonLoader();
+          
+          // Fetch the page with the diff parameters
+          const currentUrl = new URL(window.location.href);
+          currentUrl.searchParams.set('backup_a', backupAId);
+          currentUrl.searchParams.set('backup_b', backupBId);
+          currentUrl.searchParams.set('diff', 'True');
+          window.location.href = currentUrl.toString();
+        }
+        
+        // Function to show skeleton loader
+        function showSkeletonLoader() {
+          // Make sure diff container is visible
+          diffContainer.classList.remove('d-none');
+          configPane.style.display = 'none';
+          
+          // Create skeleton loader HTML
+          const skeletonHtml = `
+            <div class="skeleton-diff">
+              <div class="skeleton skeleton-header"></div>
+              <div class="skeleton skeleton-line long"></div>
+              <div class="skeleton skeleton-line medium"></div>
+              <div class="skeleton skeleton-line short"></div>
+              <div class="skeleton skeleton-line long"></div>
+              <div class="skeleton skeleton-line medium"></div>
+              <div class="skeleton skeleton-line short"></div>
+              <div class="skeleton skeleton-line long"></div>
+              <div class="skeleton skeleton-line medium"></div>
+              <div class="skeleton skeleton-line short"></div>
+              <div class="skeleton skeleton-line long"></div>
+              <div class="skeleton skeleton-line medium"></div>
+              <div class="skeleton skeleton-line short"></div>
+              <div class="skeleton skeleton-line long"></div>
+              <div class="skeleton skeleton-line medium"></div>
+              <div class="skeleton skeleton-line short"></div>
+            </div>
+          `;
+          
+          // Set the skeleton loader HTML
+          diffContainer.innerHTML = skeletonHtml;
+        }
+
+        // If in diff mode, the server has already provided the diff.
+        // We just need to render it.
+
+        // Preserve selected values in diff form when in diff mode
+        if (isDiffMode) {
+          const backupAId = urlParams.get('backup_a');
+          const backupBId = urlParams.get('backup_b');
+          diffForm.elements['backup_a'].value = backupAId;
+          diffForm.elements['backup_b'].value = backupBId;
+        }
+
+        // Server-side diff processing is now used
+        // The diff string is passed in the context and rendered directly
+        // Initialize diff2html-ui-slim with server-processed diff
+        if (isDiffMode) {
+          // Escape the diff string for JavaScript
+          const diffString = "{{ diff_string|default_if_none:''|escapejs }}";
+          if (diffString) {
+            // Initialize diff2html-ui-slim
+            const diff2htmlUi = new Diff2HtmlUI(diffContainer, diffString, {
+              drawFileList: true,
+              matching: 'lines',
+              outputFormat: 'side-by-side',
+              synchronisedScroll: true,
+              colorScheme: 'dark',
+              highlight: true
+            });
+
+            // Draw the diff
+            diff2htmlUi.draw();
+          } else {
+            // If no diff string is available yet, show skeleton loader
+            showSkeletonLoader();
+          }
+        }
+      });
+    </script>
+{% endblock %}
