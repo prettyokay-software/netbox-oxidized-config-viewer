@@ -25,6 +25,8 @@ This project was created using human directed AI coding, primarily Devstral and 
 ## Features
 Allows viewing of config from device tab
 
+<img width="1603" height="513" alt="Screenshot 2025-08-07 161609" src="https://github.com/user-attachments/assets/b5facca6-d7b0-4cc0-b93b-417f4507d81c" />
+
 Download previous config versions
 
 Display diff of config versions (alpha version feature)
@@ -32,6 +34,8 @@ Display diff of config versions (alpha version feature)
 Lists all devices with config backups as well as their versions
 
 Allows triggering a new backup from Netbox UI
+
+<img width="1862" height="606" alt="Screenshot 2025-08-07 161645" src="https://github.com/user-attachments/assets/af0b2320-f2b5-41ec-a011-a13f50dff74c" />
 
 ## Compatibility
 
@@ -77,4 +81,5 @@ Based on the NetBox plugin tutorial:
 - [tutorial](https://github.com/netbox-community/netbox-plugin-tutorial)
 
 This package was created with [Cookiecutter](https://github.com/audreyr/cookiecutter) and the [`netbox-community/cookiecutter-netbox-plugin`](https://github.com/netbox-community/cookiecutter-netbox-plugin) project template.
+
 
